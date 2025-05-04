@@ -130,9 +130,126 @@ async function toggleAltDisplayOnPage() {
     }
 }
 
-// --- Event Listeners ---
+// --- Initialization & Connection Check ---
 
-// Reload button targets the CURRENTLY ACTIVE tab
+// Attempts to inject content script if needed, then pings for connection.
+async function ensureContentScriptReady(tabId, attempt = 1) {
+    const MAX_INJECTION_ATTEMPTS = 3; // Try injecting a few times if it fails
+    const MAX_PING_ATTEMPTS = 5;    // Ping attempts after presumed injection
+    const RETRY_DELAY_MS = 500;
+
+    console.log(`Ensure Script Attempt ${attempt}/${MAX_INJECTION_ATTEMPTS} for tab ${tabId}`);
+    imageListEl.innerHTML = `<li>Preparing page analysis (attempt ${attempt})...</li>`;
+    reloadButton.disabled = true;
+    toggleAltButton.disabled = true;
+
+    try {
+        // 1. Attempt to inject the content script
+        console.log(`Attempting to inject content.js into tab ${tabId}`);
+        await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ['content.js']
+        });
+        console.log(`Successfully requested injection for content.js into tab ${tabId}.`);
+
+        // 2. Injection requested, now start pinging
+        await pingContentScript(tabId);
+
+    } catch (error) {
+        console.warn(`Error during ensureContentScriptReady (injection phase) for tab ${tabId}, attempt ${attempt}:`, error.message);
+
+        // Check if error is because script already exists (common after first injection)
+        // Note: Error message might vary across browsers/versions.
+        if (error.message.includes("Cannot access a chrome:// URL") || error.message.includes("Missing host permission") || error.message.includes("No matching host permissions")) {
+             imageListEl.innerHTML = `<li>Cannot analyze this page. Extension does not have permission for this URL (${escapeHTML(error.message)}).</li>`;
+             // Don't retry if it's a permissions issue
+             return;
+        }
+         if (error.message.includes("Script already injected") || error.message.includes("Duplicate script") || error.message.includes("Cannot create execution context")) {
+             console.log("Content script likely already injected, proceeding to ping.");
+             await pingContentScript(tabId); // Proceed to ping even if injection failed this way
+         } else if (attempt < MAX_INJECTION_ATTEMPTS) {
+            // Different error, retry injection
+            console.log(`Retrying script injection/ping in ${RETRY_DELAY_MS}ms...`);
+            setTimeout(() => ensureContentScriptReady(tabId, attempt + 1), RETRY_DELAY_MS);
+        } else {
+            // Max injection attempts reached for other errors
+            console.error("Max injection attempts reached or unrecoverable error:", error.message);
+            imageListEl.innerHTML = `<li>Error preparing page analysis: ${escapeHTML(error.message)}</li>`;
+            // Keep buttons disabled
+            associatedTabId = null;
+        }
+    }
+}
+
+// Pings content script after injection request, retries ping if necessary.
+async function pingContentScript(tabId, attempt = 1) {
+    const MAX_PING_ATTEMPTS = 8; // Allow more ping attempts after injection request
+    const PING_RETRY_DELAY_MS = 400;
+
+    console.log(`Ping attempt ${attempt}/${MAX_PING_ATTEMPTS} for tab ${tabId}`);
+     imageListEl.innerHTML = `<li>Connecting to page script (attempt ${attempt})...</li>`;
+
+    try {
+        const response = await chrome.tabs.sendMessage(tabId, { type: 'PING_CONTENT_SCRIPT' });
+        if (response && response.type === 'PONG') {
+            console.log("PONG received. Connection established.");
+            associatedTabId = tabId; // Set the active tab ID
+            reloadButton.disabled = false;
+            toggleAltButton.disabled = false;
+            await requestImageData(); // Request actual data
+        } else {
+            throw new Error(`Unexpected PING response: ${JSON.stringify(response)}`);
+        }
+    } catch (error) {
+        console.warn(`Ping attempt ${attempt} failed for tab ${tabId}:`, error.message);
+        if (attempt < MAX_PING_ATTEMPTS) {
+            console.log(`Retrying ping in ${PING_RETRY_DELAY_MS}ms...`);
+            setTimeout(() => pingContentScript(tabId, attempt + 1), PING_RETRY_DELAY_MS);
+        } else {
+            console.error("Max ping attempts reached. Could not connect.");
+            imageListEl.innerHTML = `<li>Error: Still could not connect to page script after injection and ${MAX_PING_ATTEMPTS} pings. Reload page/extension. Details: ${escapeHTML(error.message)}</li>`;
+            reloadButton.disabled = true;
+            toggleAltButton.disabled = true;
+            associatedTabId = null;
+        }
+    }
+}
+
+
+// Initialize the panel by finding the active tab and ensuring the script is ready
+async function initPanel() {
+    console.log("Panel initPanel started.");
+    reloadButton.disabled = true;
+    toggleAltButton.disabled = true;
+    imageListEl.innerHTML = '<li>Identifying active tab...</li>';
+    associatedTabId = null;
+    allImagesData = [];
+    isAltDisplayActive = false;
+    toggleAltButton.textContent = 'Show Alt Text';
+
+    try {
+        let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        if (tab && tab.id) {
+            console.log("Panel targeting active tab:", tab.id);
+            // No need to check URL scheme here, executeScript will fail if invalid
+            console.log("Ensuring content script is ready...");
+            await ensureContentScriptReady(tab.id);
+        } else {
+            console.error("Could not find active tab during initialization.");
+            imageListEl.innerHTML = '<li>Error: Could not find active tab.</li>';
+        }
+    } catch (error) {
+        console.error("Error during panel initialization query:", error);
+        imageListEl.innerHTML = `<li>Error initializing panel: ${escapeHTML(error.message)}</li>`;
+    }
+}
+
+// Initial setup when the panel's HTML content is loaded
+document.addEventListener('DOMContentLoaded', initPanel);
+
+// Reload button should re-run initPanel, which now handles injection and connection
 reloadButton.addEventListener('click', async () => {
     console.log("Reload button clicked. Finding active tab...");
     imageListEl.innerHTML = '<li>Initiating reload...</li>';
@@ -140,104 +257,44 @@ reloadButton.addEventListener('click', async () => {
     toggleAltButton.disabled = true;
 
     try {
-        // 1. Find the currently active tab
         let [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
         if (currentTab && currentTab.id) {
-            console.log(`Found active tab: ${currentTab.id}. Reloading...`);
-            associatedTabId = currentTab.id; // Update our target ID
-
-            // 2. Reload this tab
-            await chrome.tabs.reload(associatedTabId);
-            console.log(`Tab ${associatedTabId} reload initiated.`);
-
-            // 3. Re-initialize the panel after a delay to fetch new data
-            console.log("Scheduling panel re-initialization after reload delay...");
-            // Use initPanel which now correctly identifies the active tab
-            setTimeout(initPanel, 1500);
+            console.log(`Calling chrome.tabs.reload for tab ${currentTab.id}`);
+            await chrome.tabs.reload(currentTab.id);
+            console.log(`chrome.tabs.reload for tab ${currentTab.id} call completed.`);
+            const reloadDelay = 1000; // Shorter delay might be okay now? Test.
+            console.log(`Scheduling panel re-initialization (inc. injection) after ${reloadDelay}ms reload delay...`);
+            setTimeout(() => {
+                console.log(`Executing initPanel after ${reloadDelay}ms delay.`);
+                initPanel();
+            }, reloadDelay);
         } else {
             console.error("Could not find active tab to reload.");
             imageListEl.innerHTML = '<li>Error: Could not find active tab.</li>';
-            reloadButton.disabled = false; // Re-enable on error finding tab
+            reloadButton.disabled = false;
             toggleAltButton.disabled = false;
         }
     } catch (error) {
-        // Handle errors during query or reload
         console.error("Error during reload process:", error);
         imageListEl.innerHTML = `<li>Error during reload: ${escapeHTML(error.message)}</li>`;
-        reloadButton.disabled = false; // Re-enable on error
+        reloadButton.disabled = false;
         toggleAltButton.disabled = false;
     }
 });
 
-// Toggle alt display button (uses associatedTabId)
-toggleAltButton.addEventListener('click', toggleAltDisplayOnPage);
-
-// Filter changes (acts on currently loaded data)
-filterTypeEl.addEventListener('change', renderImageList);
-filterAltStatusEl.addEventListener('change', renderImageList);
-
-// --- Initialization ---
-
-// Initialize the panel by finding the active tab and loading its data
-async function initPanel() {
-    console.log("Panel initializing...");
-    reloadButton.disabled = true; // Disable buttons until ready
-    toggleAltButton.disabled = true;
-    imageListEl.innerHTML = '<li>Identifying active tab...</li>';
-    associatedTabId = null; // Reset ID on init
-    allImagesData = [];     // Reset data
-    isAltDisplayActive = false; // Reset toggle state
-    toggleAltButton.textContent = 'Show Alt Text';
-
-    try {
-        // Query for the currently active tab in the current window
-        let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-        if (tab && tab.id) {
-            associatedTabId = tab.id;
-            console.log("Panel associated with active tab:", associatedTabId);
-            // Check if the URL is valid for content script injection
-            if (tab.url && (tab.url.startsWith('http:') || tab.url.startsWith('https:') || tab.url.startsWith('file:'))) {
-                imageListEl.innerHTML = '<li>Fetching data...</li>';
-                reloadButton.disabled = false; // Enable buttons now
-                toggleAltButton.disabled = false;
-                await requestImageData(); // Load data for the active tab
-            } else {
-                console.warn(`Cannot analyze non-HTTP/HTTPS/File URL: ${tab.url}`);
-                imageListEl.innerHTML = `<li>Cannot analyze this page (${escapeHTML(tab.url || 'N/A')}). Requires http, https, or file URL.</li>`;
-                // Keep buttons disabled
-            }
-        } else {
-            console.error("Could not find active tab during initialization.");
-            imageListEl.innerHTML = '<li>Error: Could not find active tab.</li>';
-        }
-    } catch (error) {
-        console.error("Error during panel initialization:", error);
-        imageListEl.innerHTML = `<li>Error initializing panel: ${escapeHTML(error.message)}</li>`;
-        // Keep buttons disabled
-    }
-}
-
-// Initial setup when the panel's HTML content is loaded
-document.addEventListener('DOMContentLoaded', initPanel);
-
-// Listen for tab activation changes to re-initialize the panel
-// This makes the panel update when the user switches tabs
+// Tab activation/update listeners should also call initPanel
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
     console.log("Tab activated event, re-initializing panel for tab:", activeInfo.tabId);
-    // We could check if the panel is actually visible here, but re-running initPanel
-    // is generally safe as it queries the *new* active tab.
     await initPanel();
 });
-
-// Listen for tab updates (e.g., navigation within the same tab)
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    // Check if the update is for the currently associated tab and the update is complete
-    // (to avoid multiple triggers during a single page load)
-    if (tabId === associatedTabId && changeInfo.status === 'complete') {
-        console.log(`Detected update completion for associated tab ${tabId}. Re-initializing panel.`);
-        await initPanel();
+    // Re-init only if the *active* tab finishes loading
+    if (changeInfo.status === 'complete') {
+         let [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+         if(activeTab && activeTab.id === tabId){
+             console.log(`Detected update completion for active tab ${tabId}. Re-initializing panel.`);
+             await initPanel();
+         }
     }
 });
 

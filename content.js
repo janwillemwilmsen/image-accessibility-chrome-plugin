@@ -206,17 +206,28 @@ function toggleAltTextOverlay(show) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("Content script received message:", request);
 
-    if (request.type === 'GET_IMAGE_DATA' || request.type === 'GET_IMAGE_DATA_DIRECT') {
+    if (request.type === 'PING_CONTENT_SCRIPT') {
+        // Respond immediately to confirm the script is alive and listening
+        console.log("Content Script: Received PING, sending PONG.");
+        sendResponse({ type: 'PONG' });
+        return true; // Indicate potential async response (good practice)
+    }
+    else if (request.type === 'GET_IMAGE_DATA') {
+        console.log("Content script received GET_IMAGE_DATA request.");
         try {
             const imageData = findImages();
-            sendResponse({ images: imageData });
+            // Add a small delay *before* sending image data back?
+            // Sometimes rapid response can cause issues if panel isn't fully ready.
+            // setTimeout(() => sendResponse({ images: imageData }), 50); // Optional 50ms delay
+            sendResponse({ images: imageData }); // Send immediately for now
         } catch (error) {
             console.error("Error finding images:", error);
             sendResponse({ error: error.message });
         }
-        return true; // Indicates response will be sent asynchronously (though it's synchronous here)
+        return true;
     }
     else if (request.type === 'TOGGLE_ALT_DISPLAY') {
+        console.log("Content script received TOGGLE_ALT_DISPLAY request.");
         try {
             toggleAltTextOverlay(request.show);
             sendResponse({ success: true });
@@ -224,10 +235,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             console.error("Error toggling alt display:", error);
             sendResponse({ success: false, error: error.message });
         }
-        return true; // Async response
+        return true;
     }
 
     // Handle other message types if needed
+
+    console.log("Content script received unknown message type:", request.type);
+    // return false; // Implicitly return undefined for unhandled types
 });
 
-console.log("Image Accessibility Analyzer: Content script ready."); 
+console.log("Image Accessibility Analyzer: Content script loaded and listener attached."); 

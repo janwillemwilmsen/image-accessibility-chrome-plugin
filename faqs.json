@@ -1,0 +1,34 @@
+[
+  {
+    "question": "What does this extension do?",
+    "answer": "This extension analyzes images on webpages for accessibility issues. It helps identify images that are missing alt text, have empty alt attributes, or may need accessibility improvements."
+  },
+  {
+    "question": "How do I use the filter buttons?",
+    "answer": "The filter buttons at the top of the images list allow you to show or hide different types of images. Click on a button to toggle filtering for that category. An open eye icon means you're viewing that type of image, while a closed eye means those images are hidden."
+  },
+  {
+    "question": "What's the difference between 'Missing Alt' and 'Empty Alt'?",
+    "answer": "Missing Alt means the image has no alt attribute at all (&lt;img src='...'&gt;) while Empty Alt means the image has an empty alt attribute (&lt;img src='...' alt=''&gt;). Empty alt attributes are appropriate for decorative images, while informative images should have descriptive alt text."
+  },
+  {
+    "question": "How do I reload the page data?",
+    "answer": "Click the 'Reload Page & Data' button to refresh the current page and update the image analysis. This is useful after making changes to the page or when the extension doesn't detect changes automatically."
+  },
+  {
+    "question": "What does 'Enable Alt Text Display' do?",
+    "answer": "This button shows overlays on the actual webpage with the alt text (or missing alt text warnings) displayed next to each image. This helps you visually identify images that need accessibility improvements directly on the page."
+  },
+  {
+    "question": "What does 'In Link/Button' mean?",
+    "answer": "This indicates that the image is contained within a link or button element. Images inside interactive elements should have appropriate alt text that explains the purpose or destination of the link/button, if there is no other text inside the link/button. <br><br><b>Note:</b> If the link/button has text, the image should have an empty alt attribute. (If there is alt text(for SEO), the image should be hidden for assistive technology?)"
+  },
+  {
+    "question": "What is 'focusable=false'?",
+    "answer": "The 'focusable' attribute is specific to SVG elements. Setting focusable='false' prevents the SVG from receiving keyboard focus, which is typically appropriate for decorative SVGs or those inside interactive elements that already receive focus."
+  },
+  {
+    "question": "What are know issues/limitations with this extension?",
+    "answer": "This extension is not without flaws, and there are some known issues. <br><ul><li>Gif images are not supported.</li><li>Images in iframes are not supported.</li><li>Images in 'Sprites' are not supported. All images in the sprite images are in the preview view. (A sprite is a single image with multiple images inside it. It reduces the number of HTTP requests to the server, which is good for performance.)</li><li>Webpages that are highly dynamic, use lazyloading, use placeholder images, or inject images into the DOM after the initial page load, may not be supported.<b>Scroll to the bottom of the page, making sure all images have loaded, and open the extension.</b></li><li>Font icons are not supported.</li><li>Scrolling only works on visible images.</li><li>Aria hidden is only tested 10 levels up the DOM tree.</li><li>Links that are injected via javascript after the page has loaded are probably missed in the analysis.</li></ul>"
+  }
+] 
