@@ -1,0 +1,128 @@
+body {
+    font-family: sans-serif;
+    padding: 10px;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+.container {
+    background-color: white;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+h1, h2 {
+    margin-top: 0;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+#overview-stats p {
+    margin: 5px 0;
+    font-size: 0.9em;
+}
+
+#overview-stats span {
+    font-weight: bold;
+    color: #0056b3;
+}
+
+.actions {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.actions button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    font-size: 0.9em;
+}
+
+.actions button:hover {
+    background-color: #0056b3;
+}
+
+.filters {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.filter-group {
+    margin-bottom: 10px;
+}
+
+.filter-group label {
+    display: block;
+    margin-bottom: 3px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.filter-group select {
+    width: 100%;
+    padding: 5px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+.results {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+#image-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 400px; /* Example height, adjust as needed */
+    overflow-y: auto;
+}
+
+#image-list li {
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9em;
+}
+
+#image-list img.thumbnail {
+    max-width: 50px;
+    max-height: 50px;
+    object-fit: contain;
+    border: 1px solid #eee;
+}
+
+#image-list .info {
+    flex-grow: 1;
+}
+
+#image-list .info p {
+    margin: 2px 0;
+}
+
+#image-list .alt-status-present {
+    color: green;
+}
+
+#image-list .alt-status-empty {
+    color: orange;
+}
+
+#image-list .alt-status-missing {
+    color: red;
+} 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Solid black background -->
+=  
+  <!-- White inner area with more padding -->
+        
+  <!-- Image Icon -->
+  <rect x="14" y="14" width="100" height="100" rx="15" ry="15" 
+        fill="white" 
+        stroke="black" 
+        stroke-width="8"/>
+  
+  <!-- Sun/Circle -->
+  <circle cx="70" cy="40" r="13" 
+        fill="white" 
+        stroke="black" 
+        stroke-width="8"/>
+  
+  <!-- Mountains -->
+  <path d="M14 90 L40 64 L65 85 L95 50 L114 69 L114 105 C114 112.2 108.2 114 101 114 L27 114 C19.8 114 14 112.2 14 105 Z" 
+        fill="white" 
+        stroke="black" 
+        stroke-width="8"
+        stroke-linejoin="round"/>
+</svg> 
